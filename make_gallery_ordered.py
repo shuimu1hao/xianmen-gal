@@ -4,7 +4,7 @@
 用法：python3 make_gallery_ordered.py <输出html> <名字,逗号分隔> <图片路径...>"""
 import base64, sys
 
-def main():
+def main():  # 按文件名顺序生成立绘画廊 HTML):
     html_path = sys.argv[1]
     names = sys.argv[2].split(",") if len(sys.argv) > 2 else []
     imgs = sys.argv[3:]

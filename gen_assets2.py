@@ -11,7 +11,7 @@ for d in ("portraits", "scenes", "cg"):
 
 FACE = "detailed beautiful face, large sparkling eyes, sharp facial features, delicate skin, "
 
-def gen(outdir, name, prompt, seed):
+def gen(outdir, name, prompt, seed):  # 调用 Pollinations 生成立绘并保存outdir, name, prompt, seed):
     url = ("https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt) +
            f"?width=1024&height=1536&model=flux&nologo=true&seed={seed}")
     for attempt in range(4):

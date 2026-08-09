@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>仙门物语</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0a0a14; font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif; }
+  #app { position:relative; width:100%; height:100%; overflow:hidden; }
+
+  /* ---------- 场景层 ---------- */
+  #bgLayer, #cgLayer { position:absolute; inset:0; background-size:cover; background-position:center; }
+  #bgLayer { transition: background-image 0.6s ease; z-index:1; }
+  #cgLayer { z-index:5; opacity:0; transition:opacity 0.5s ease; background-color:#000; display:flex; align-items:center; justify-content:center; }
+  #cgLayer.show { opacity:1; }
+  #cgLayer img { max-width:100%; max-height:100%; object-fit:contain; }
+  #bgDim { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.62) 100%); z-index:2; pointer-events:none; }
+
+  /* ---------- 立绘层 ---------- */
+  #portraitLayer { position:absolute; inset:0; z-index:3; pointer-events:none; display:flex; justify-content:center; align-items:flex-end; }
+  #portraitLayer .portrait { position:absolute; bottom:0; height:82%; transition: all 0.4s ease; opacity:0; }
+  #portraitLayer .portrait.show { opacity:1; }
+  #portraitLayer .portrait.left  { left:4%; transform:translateX(-12px); }
+  #portraitLayer .portrait.center{ left:50%; transform:translateX(-50%); }
+  #portraitLayer .portrait.right { right:4%; transform:translateX(12px); }
+  #portraitLayer .portrait img { height:100%; filter:drop-shadow(0 0 18px rgba(0,0,0,0.5)); }
+
+  /* ---------- 对话层 ---------- */
+  #dialog { position:absolute; left:3%; right:3%; bottom:2.5%; z-index:6;
+    background:rgba(10,12,26,0.82); border:1px solid rgba(180,170,255,0.25); border-radius:14px;
+    padding:14px 18px; min-height:140px; backdrop-filter:blur(4px);
+    box-shadow:0 6px 28px rgba(0,0,0,0.55); }
+  #speakerBox { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  #speakerName { color:#ffd27a; font-weight:700; font-size:1.02rem; letter-spacing:2px; }
+  #speakerTag { font-size:0.68rem; color:#9aa0c8; border:1px solid #4a4f7a; border-radius:6px; padding:1px 6px; }
+  #text { color:#eef0ff; font-size:1.0rem; line-height:1.75; min-height:68px; letter-spacing:0.5px; }
+  #text .cursor { display:inline-block; width:2px; height:1.05em; background:#ffd27a; vertical-align:-0.15em; animation:blink 0.8s infinite; }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+  #hint { position:absolute; right:16px; bottom:10px; color:#6a7099; font-size:0.72rem; }
+
+  /* ---------- 好感度 HUD ---------- */
+  #hud { position:absolute; top:8px; right:8px; z-index:7; display:flex; gap:8px; font-size:0.68rem; }
+  #hud .aff { background:rgba(8,10,24,0.72); border:1px solid rgba(160,150,255,0.22); border-radius:8px; padding:3px 7px; color:#cfd3f2; }
+  #hud .aff b { color:#ffd27a; }
+  #hud .aff .dots { letter-spacing:1px; }
+  #hud .aff .dot { color:#3a3f66; }
+  #hud .aff .dot.on { color:#ffb84d; text-shadow:0 0 6px rgba(255,184,77,0.8); }
+
+  /* ---------- 选项层 ---------- */
+  #choiceLayer { position:absolute; left:8%; right:8%; bottom:24%; z-index:8; display:none; flex-direction:column; gap:10px; }
+  #choiceLayer.show { display:flex; }
+  .choiceBtn { background:rgba(14,17,36,0.9); border:1.5px solid rgba(190,175,255,0.4); color:#e8e9ff;
+    border-radius:10px; padding:12px 14px; font-size:0.95rem; line-height:1.55; text-align:left; cursor:pointer;
+    transition: all 0.15s ease; box-shadow:0 3px 14px rgba(0,0,0,0.4); }
+  .choiceBtn:hover, .choiceBtn:active { background:rgba(60,52,120,0.9); border-color:#ffd27a; transform:translateY(-1px); }
+  .choiceBtn .affHint { color:#8f95c8; font-size:0.72rem; margin-top:3px; }
+
+  /* ---------- 标题 / 结束 ---------- */
+  #titleScreen, #endScreen { position:absolute; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; background:radial-gradient(ellipse at 50% 30%, #161a3a 0%, #080a16 75%); }
+  #titleScreen.hidden, #endScreen.hidden { display:none; }
+  #titleScreen h1 { font-size:2.6rem; color:#ffe9b8; letter-spacing:12px; text-shadow:0 0 30px rgba(255,210,122,0.45); margin-bottom:6px; }
+  #titleScreen .sub { color:#8f95c8; letter-spacing:6px; margin-bottom:36px; font-size:0.9rem; }
+  #titleScreen .btn, #endScreen .btn { display:block; margin:10px auto; width:220px; text-align:center;
+    background:rgba(30,34,70,0.85); border:1.5px solid rgba(190,175,255,0.45); color:#e8e9ff; border-radius:10px;
+    padding:13px 0; font-size:1.0rem; cursor:pointer; letter-spacing:4px; transition:all 0.15s ease; }
+  #titleScreen .btn:hover, #titleScreen .btn:active, #endScreen .btn:hover, #endScreen .btn:active { background:rgba(70,58,140,0.9); border-color:#ffd27a; }
+  #titleScreen .tip { position:absolute; bottom:18px; color:#565b85; font-size:0.7rem; letter-spacing:2px; }
+
+  #endScreen .endTitle { font-size:1.9rem; letter-spacing:10px; margin-bottom:8px; }
+  #endScreen .endSub { color:#9aa0c8; margin-bottom:22px; font-size:0.85rem; letter-spacing:3px; }
+  #endScreen .endGood { color:#8dffb0; text-shadow:0 0 24px rgba(141,255,176,0.5); }
+  #endScreen .endBad  { color:#ff8d9a; text-shadow:0 0 24px rgba(255,141,154,0.5); }
+
+  /* 章节标题 */
+  #chapterBanner { position:absolute; inset:0; z-index:10; display:flex; align-items:center; justify-content:center;
+    background:rgba(4,5,12,0.72); opacity:0; transition:opacity 0.6s ease; pointer-events:none; }
+  #chapterBanner.show { opacity:1; }
+  #chapterBanner span { color:#ffe9b8; font-size:1.7rem; letter-spacing:10px; text-shadow:0 0 24px rgba(255,210,122,0.4); }
+
+  #saveTip { position:absolute; top:8px; left:8px; z-index:7; font-size:0.62rem; color:#565b85;
+    background:rgba(8,10,24,0.6); border-radius:6px; padding:2px 6px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bgLayer"></div>
+  <div id="bgDim"></div>
+  <div id="portraitLayer"></div>
+  <div id="cgLayer"><img id="cgImg" src=""></div>
+  <div id="chapterBanner"><span id="chapterText"></span></div>
+
+  <div id="hud">
+    <div class="aff">师<span id="affShifu"></span></div>
+    <div class="aff">姐<span id="affShijie"></span></div>
+    <div class="aff">妹<span id="affShimei"></span></div>
+  </div>
+  <div id="saveTip">自动存档中</div>
+
+  <div id="dialog">
+    <div id="speakerBox"><span id="speakerName"></span><span id="speakerTag"></span></div>
+    <div id="text"></div>
+    <div id="hint">▼ 点击继续</div>
+  </div>
+
+  <div id="choiceLayer"></div>
+
+  <div id="titleScreen">
+    <h1>仙门物语</h1>
+    <div class="sub">—— 三线仙缘 · 一念成魔 ——</div>
+    <div class="btn" id="btnStart">开 始</div>
+    <div class="btn" id="btnContinue">继 续</div>
+    <div class="btn" id="btnReset">从 头 来 过</div>
+    <div class="tip">师傅 · 师姐 · 师妹 — 6 次抉择决定结局 · 好感度 ≥4 且最高者即你的归宿</div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="endTitle" id="endTitle"></div>
+    <div class="endSub" id="endSub"></div>
+    <div class="btn" id="btnRetry">再 玩 一 次</div>
+    <div class="btn" id="btnToTitle">回 到 标 题</div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  "use strict";
+  // ================= 状态 =================
+  var state = { idx:0, aff:{ shifu:0, shijie:0, shimei:0 }, busy:false, ended:false };
+  var SAVE_KEY = "xianmen_gal_save_v1";
+  var chars = {
+    "旁白":  { name:"", tag:"" },
+    "陆亘满":{ name:"陆亘满", tag:"你" },
+    "白霜华":{ name:"白霜华", tag:"师傅" },
+    "严吟烽":{ name:"严吟烽", tag:"师姐" },
+    "陆倩瑶":{ name:"陆倩瑶", tag:"师妹" },
+    "魔尊":  { name:"魔尊", tag:"魔" }
+  };
+  var portraitOf = { "白霜华":"shifu", "严吟烽":"shijie", "陆倩瑶":"shimei", "陆亘满":"hero" };
+  var affKeys = ["shifu","shijie","shimei"];
+
+  // ================= DOM =================
+  var $ = function(id){ return document.getElementById(id); };
+  var bgLayer=$("bgLayer"), cgLayer=$("cgLayer"), cgImg=$("cgImg");
+  var portraitLayer=$("portraitLayer"), dialog=$("dialog"), textEl=$("text");
+  var speakerName=$("speakerName"), speakerTag=$("speakerTag"), hint=$("hint");
+  var choiceLayer=$("choiceLayer"), chapterBanner=$("chapterBanner"), chapterText=$("chapterText");
+  var titleScreen=$("titleScreen"), endScreen=$("endScreen");
+
+  // ================= 背景与立绘 =================
+  function setBG(name){
+    bgLayer.style.backgroundImage = "url('assets/scenes/"+name+".png')";
+  }
+  function setPortrait(name, side){
+    // 清空
+    portraitLayer.innerHTML = "";
+    if(!name) return;
+    var pos = side || "center";
+    var div = document.createElement("div");
+    div.className = "portrait "+pos;
+    div.innerHTML = "<img src='assets/portraits/"+name+".png'>";
+    portraitLayer.appendChild(div);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ div.classList.add("show"); }); });
+  }
+  function showCG(name){
+    cgImg.src = "assets/cg/"+name+".png";
+    cgLayer.classList.add("show");
+  }
+  function hideCG(){ cgLayer.classList.remove("show"); }
+
+  // ================= 打字机 =================
+  var typeTimer = null;
+  function typeText(full, cb){
+    clearInterval(typeTimer);
+    textEl.innerHTML = "";
+    var i = 0;
+    typeTimer = setInterval(function(){
+      i++;
+      textEl.textContent = full.slice(0, i);
+      textEl.innerHTML += "<span class='cursor'></span>";
+      if(i >= full.length){ clearInterval(typeTimer); typeTimer=null; if(cb) cb(); }
+    }, 22);
+  }
+  function skipType(){
+    if(typeTimer){ clearInterval(typeTimer); typeTimer=null;
+      // 补全当前文本
+      var node = SCRIPT[state.idx];
+      if(node) textEl.textContent = node.text; }
+  }
+
+  // ================= 选项 =================
+  function renderChoices(node){
+    choiceLayer.innerHTML = "";
+    node.choices.forEach(function(c, i){
+      var b = document.createElement("div");
+      b.className = "choiceBtn";
+      b.innerHTML = c.text + (c.affHint ? "<div class='affHint'>"+c.affHint+"</div>" : "");
+      b.onclick = function(){
+        if(c.aff){
+          for(var k in c.aff){ if(state.aff[k]!==undefined) state.aff[k] += c.aff[k]; }
+          updateHUD();
+        }
+        choiceLayer.classList.remove("show");
+        state.idx = (c.next !== undefined) ? c.next : (node.nextIdx !== undefined ? node.nextIdx : state.idx+1);
+        save();
+        runNode();
+      };
+      choiceLayer.appendChild(b);
+    });
+    choiceLayer.classList.add("show");
+  }
+
+  // ================= 章节横幅 =================
+  function showChapter(title, cb){
+    chapterText.textContent = title;
+    chapterBanner.classList.add("show");
+    setTimeout(function(){ chapterBanner.classList.remove("show"); if(cb) cb(); }, 1300);
+  }
+
+  // ================= 节点执行 =================
+  function runNode(){
+    if(state.ended) return;
+    if(state.idx >= SCRIPT.length){ return; }
+    var node = SCRIPT[state.idx];
+    hideCG(); choiceLayer.classList.remove("show");
+
+    // 结局判定节点：根据好感度跳结局
+    if(node.judge){
+      var a = state.aff;
+      if(a.shimei >= 4 && a.shimei > a.shifu && a.shimei > a.shijie){
+        state.idx = node.nextBad;
+      } else if(a.shifu >= 4 && a.shifu >= a.shijie){
+        state.idx = node.nextGood1;
+      } else if(a.shijie >= 4 && a.shijie > a.shifu){
+        state.idx = node.nextGood2;
+      } else {
+        state.idx = node.nextBadAlt;
+      }
+      runNode();
+      return;
+    }
+
+    if(node.chapter){ showChapter(node.chapter); }
+    if(node.bg) setBG(node.bg);
+    if(node.cg){ showCG(node.cg); }
+
+    // 立绘（对话角色） / 结局页特殊处理
+    if(node.end){
+      state.ended = true;
+      showEnding(node);
+      return;
+    }
+    if(node.title){
+      // 标题/章节占位节点直接跳过
+      state.idx++; runNode(); return;
+    }
+
+    if(node.speaker){
+      var info = chars[node.speaker] || {name:node.speaker, tag:""};
+      speakerName.textContent = info.name;
+      speakerTag.textContent = info.tag;
+      var pn = portraitOf[node.speaker];
+      var side = (node.speaker==="严吟烽"||node.speaker==="白霜华") ? "left" : (node.speaker==="陆倩瑶" ? "right" : "center");
+      if(node.noPortrait){ setPortrait(null); } else { setPortrait(pn, side); }
+    } else {
+      speakerName.textContent = "";
+      speakerTag.textContent = "";
+    }
+
+    hint.style.visibility = "visible";
+    dialog.style.display = "block";
+    if(node.choices){
+      // 选项前若有文本，先打字
+      if(node.text){
+        typeText(node.text, function(){ hint.style.visibility="hidden"; renderChoices(node); });
+      } else {
+        textEl.textContent = "";
+        renderChoices(node);
+      }
+    } else {
+      typeText(node.text, function(){});
+    }
+    save();
+  }
+
+  // ================= 结局 =================
+  function showEnding(node){
+    setPortrait(null);
+    setBG(node.bg || "battle");
+    if(node.cg) showCG(node.cg);
+    speakerName.textContent = ""; speakerTag.textContent = "";
+    dialog.style.display = "none";
+    var t = $("endTitle"), s = $("endSub");
+    t.className = "endTitle " + (node.good ? "endGood" : "endBad");
+    t.textContent = node.title || "THE END";
+    s.innerHTML = node.sub || "";
+    // 播放结局文本（打字机显示在 endScreen 里）
+    endScreen.classList.remove("hidden");
+    var full = node.text || "";
+    // 将结局文本显示在 endSub 下方
+    var d = document.createElement("div");
+    d.id = "endBody"; d.style.cssText = "color:#dfe2ff;font-size:0.95rem;line-height:1.8;max-width:80%;max-height:34%;overflow:auto;text-align:left;padding:8px 12px;background:rgba(8,10,24,0.5);border-radius:8px;";
+    d.textContent = full;
+    s.appendChild(d);
+    localStorage.removeItem(SAVE_KEY);
+  }
+
+  // ================= HUD / 存档 =================
+  function dots(n){
+    var out = "";
+    for(var i=0;i<5;i++) out += "<span class='dot"+(i<n?" on":"")+"'>●</span>";
+    return out;
+  }
+  function updateHUD(){
+    $("affShifu").innerHTML = "<b>"+state.aff.shifu+"</b> <span class='dots'>"+dots(state.aff.shifu)+"</span>";
+    $("affShijie").innerHTML = "<b>"+state.aff.shijie+"</b> <span class='dots'>"+dots(state.aff.shijie)+"</span>";
+    $("affShimei").innerHTML = "<b>"+state.aff.shimei+"</b> <span class='dots'>"+dots(state.aff.shimei)+"</span>";
+  }
+  function save(){
+    try{ localStorage.setItem(SAVE_KEY, JSON.stringify({idx:state.idx, aff:state.aff})); }catch(e){}
+  }
+  function load(){
+    try{ var s = JSON.parse(localStorage.getItem(SAVE_KEY)); if(s && s.idx !== undefined){ state.idx = s.idx; state.aff = s.aff || state.aff; return true; } }catch(e){}
+    return false;
+  }
+
+  // ================= 点击推进 =================
+  document.getElementById("app").addEventListener("click", function(e){
+    if(e.target.closest(".choiceBtn")) return;
+    if(!titleScreen.classList.contains("hidden") && !state.started) return;
+    if(endScreen.classList.contains("hidden")===false) return;
+    if(choiceLayer.classList.contains("show")) return;
+    if(typeTimer){ skipType(); return; }
+    state.idx++; save(); runNode();
+  });
+
+  // ================= 开始 =================
+  function startGame(){
+    state = { idx:0, aff:{shifu:0,shijie:0,shimei:0}, busy:false, ended:false };
+    state.started = true;
+    updateHUD();
+    titleScreen.classList.add("hidden");
+    endScreen.classList.add("hidden");
+    runNode();
+  }
+  $("btnStart").onclick = function(){ localStorage.removeItem(SAVE_KEY); startGame(); };
+  $("btnContinue").onclick = function(){
+    if(load()){ updateHUD(); titleScreen.classList.add("hidden"); state.started=true; runNode(); }
+    else { alert("暂无存档"); }
+  };
+  $("btnReset").onclick = function(){ localStorage.removeItem(SAVE_KEY); location.reload(); };
+  $("btnRetry").onclick = function(){ location.reload(); };
+  $("btnToTitle").onclick = function(){ location.reload(); };
+  updateHUD();
+})();
+</script>
+</body>
+</html>

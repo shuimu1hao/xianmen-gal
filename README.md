@@ -6,6 +6,12 @@
 
 网页版文字恋爱游戏（galgame / 视觉小说）。纯前端实现：`data.js` 存剧情数据，`index.html` 是游戏引擎，AI 生成的立绘放 `assets/`。
 
+## 环境声明（Environment）
+
+本项目在 **MIUI 系统 + 小米 10 手机 + Termux（Android）** 环境下开发与验证。
+如果你在本地部署失败，可能与本地系统环境（系统版本、Android 权限、Termux 配置等）有关，而非项目本身的问题。
+此时可以让你的 AI Agent 查阅 **Android 官方文档**、**Termux 官方文档** 以及 **你所用系统的官方文档** 来排查解决。
+
 ## 运行
 
 直接打开 `index.html`，或起个静态服务器：
